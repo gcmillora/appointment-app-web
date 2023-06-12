@@ -3,14 +3,28 @@ import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
-import { MantineProvider } from "@mantine/core";
+import { MantineProvider, createEmotionCache } from "@mantine/core";
+import { Notifications } from "@mantine/notifications";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
+const myCache = createEmotionCache({
+  key: "mantine",
+  prepend: false,
+});
+
 root.render(
   <React.StrictMode>
-    <MantineProvider>
+    <MantineProvider
+      emotionCache={myCache}
+      theme={{
+        fontFamily: "Inter, sans-serif",
+        fontFamilyMonospace: "Monaco, Courier, monospace",
+        headings: { fontFamily: "Greycliff CF, sans-serif" },
+      }}
+    >
+      <Notifications />
       <App />
     </MantineProvider>
   </React.StrictMode>
