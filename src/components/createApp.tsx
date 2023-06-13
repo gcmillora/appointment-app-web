@@ -112,7 +112,9 @@ export default function CreateApp() {
             {...form.getInputProps("comments")}
           />
           <Group align="end">
-            <Button type="submit">Submit </Button>
+            <Button type="submit" onClick={close}>
+              Submit{" "}
+            </Button>
           </Group>
         </form>
       </Modal>

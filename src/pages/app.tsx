@@ -24,6 +24,7 @@ import { useForm } from "@mantine/form";
 import moment from "moment";
 import dayjs from "dayjs";
 import { modals } from "@mantine/modals";
+import { notifications } from "@mantine/notifications";
 const PAGE_SIZE = 15;
 
 export default function AppPage() {
@@ -189,17 +190,35 @@ export default function AppPage() {
             })
           );
           setRecords(updatedAppointments);
+          //notify success
+          notifications.show({
+            title: "Appointment created.",
+            message: "You have successfully booked an appointment.",
+            color: "teal",
+          });
           return {
             appointments: updatedAppointments,
           };
         })
         .catch((err) => {
           console.log(err);
+          notifications.show({
+            title: "Appointment failed.",
+            message: "Please try again.",
+            color: "red",
+          });
         });
-    } else console.log("Overlapping schedule");
+    } else {
+      notifications.show({
+        title: "Schedule conflict.",
+        message: "Overlapping schedule from other booked appointments.",
+        color: "red",
+      });
+    }
   }
 
   const [opened, { open, close }] = useDisclosure(false);
+  const [editOpened, editHandlers] = useDisclosure(false);
 
   const form = useForm({
     initialValues: {
@@ -209,9 +228,24 @@ export default function AppPage() {
       toDate: "",
       comments: "",
     },
+    //time should only be from 9AM TO 5PM
     validate: {
       toDate: (value, values) => {
-        return value < values.fromDate ? "Error too small" : null;
+        //time should only be from 9AM TO 5PM
+        if (value < values.fromDate) return "Error too small";
+        const time = value.split(":");
+        const hrs = parseInt(time[0]);
+        const mins = parseInt(time[1]);
+        if (hrs < 9 || hrs > 17) return "Error too small";
+        return null;
+      },
+      fromDate: (value, values) => {
+        //time should only be from 9AM TO 5PM
+        const time = value.split(":");
+        const hrs = parseInt(time[0]);
+        const mins = parseInt(time[1]);
+        if (hrs < 9 || hrs > 17) return "Error too small";
+        return null;
       },
     },
   });
@@ -309,65 +343,12 @@ export default function AppPage() {
     } else console.log("Overlapping schedule");
   }
 
-  const editApp = (appointment: any) => {
-    console.log("sd");
-    modals.open({
-      modalId: "update",
-      title: "Update Appointment",
-
-      children: (
-        <div className="">
-          <TextInput label="ID" value={appointment._id} disabled />
-
-          <TextInput
-            label=" Name"
-            placeholder="Juan Dela Cruz"
-            required
-            {...editForm.getInputProps("editpatient")}
-          />
-          <DatePickerInput
-            minDate={new Date()}
-            valueFormat="DD MMM YYYY"
-            label="Appointment Date"
-            placeholder="Pick date and time"
-            maw={400}
-            mx="auto"
-            excludeDate={(date) => date.getDay() === 0}
-            required
-            {...editForm.getInputProps("editselectedDate")}
-          />
-          <TimeInput
-            mx="auto"
-            label="From"
-            required
-            {...editForm.getInputProps("editfromDate")}
-          />
-          <TimeInput
-            mx="auto"
-            label="To"
-            {...editForm.getInputProps("edittoDate")}
-          />
-          <TextInput
-            label="Comments"
-            placeholder="i.e. Fever"
-            required
-            {...editForm.getInputProps("editcomments")}
-          />
-          <Group align="end" className="mt-8">
-            <Button type="submit">Submit </Button>
-          </Group>
-        </div>
-      ),
-    });
-  };
-
   function deleteApp(appointment: any) {
     console.log(appointment);
     fetch("http://localhost:8080/graphql", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-
         Authorization: "Bearer " + auth.token,
       },
       body: JSON.stringify({
@@ -388,11 +369,14 @@ export default function AppPage() {
       })
       .then((res) => {
         const data = res.data;
+        console.log(res);
         const updatedAppointments: any[] = [...appointments];
         //remove from array with id
         const index = updatedAppointments.findIndex(
-          (appointment) => appointment._id === data.deleteAppointment._id
+          (curr_appointment) =>
+            curr_appointment._id === data.deleteAppointment._id
         );
+
         updatedAppointments.splice(index, 1);
 
         setAppointments(
@@ -403,12 +387,23 @@ export default function AppPage() {
           })
         );
         setRecords(updatedAppointments);
+        notifications.show({
+          title: "Appointment deleted.",
+          message: "You have successfully deleted an appointment.",
+          color: "teal",
+        });
+
         return {
           appointments: updatedAppointments,
         };
       })
       .catch((err) => {
         console.log(err);
+        notifications.show({
+          title: "Appointment deletion failed.",
+          message: "Please try again.",
+          color: "red",
+        });
       });
   }
 
@@ -548,12 +543,9 @@ export default function AppPage() {
                 render: (appointment) => {
                   return (
                     <Group spacing={4} position="center" noWrap>
-                      <ActionIcon
-                        color="blue"
-                        onClick={() => editApp(appointment)}
-                      >
+                      <Button color="blue" onClick={editHandlers.open}>
                         <IconEdit size={16} />
-                      </ActionIcon>
+                      </Button>
                       <ActionIcon
                         color="red"
                         onClick={() => deleteApp(appointment)}
@@ -566,6 +558,56 @@ export default function AppPage() {
               },
             ]}
           />
+          <Modal
+            opened={editOpened}
+            onClose={editHandlers.close}
+            title="Edit Appointment"
+          >
+            <form
+              onSubmit={editForm.onSubmit((values) =>
+                editSubmit(values, auth.token)
+              )}
+            >
+              <TextInput
+                label="Patient Name"
+                placeholder="Juan Dela Cruz"
+                required
+                {...editForm.getInputProps("editpatient")}
+              />
+              <DatePickerInput
+                dropdownType="modal"
+                minDate={new Date()}
+                valueFormat="DD MMM YYYY"
+                label="Appointment Date"
+                placeholder="Pick date and time"
+                maw={400}
+                mx="auto"
+                excludeDate={(date) => date.getDay() === 0}
+                required
+                {...editForm.getInputProps("editselectedDate")}
+              />
+              <TimeInput
+                mx="auto"
+                label="From"
+                required
+                {...editForm.getInputProps("editfromDate")}
+              />
+              <TimeInput
+                mx="auto"
+                label="To"
+                {...editForm.getInputProps("edittoDate")}
+              />
+              <TextInput
+                label="Comments"
+                placeholder="i.e. Fever"
+                required
+                {...editForm.getInputProps("editcomments")}
+              />
+              <Group align="end">
+                <Button type="submit">Submit </Button>
+              </Group>
+            </form>
+          </Modal>
         </div>
       </div>
     </div>

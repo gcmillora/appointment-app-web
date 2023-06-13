@@ -56,8 +56,8 @@ export function LogInAuth() {
       .then((res) => {
         if (res.data.login.token) {
           notifications.show({
-            title: "Login sucessful.",
-            message: "Welcome back to .",
+            title: "Log-in successful.",
+            message: "Welcome to Appointment Management System.",
           });
           auth.login(res.data.login.token, res.data.login.userId, 1);
           navigate("/app");
