@@ -12,7 +12,6 @@ import AuthContext from "../context/auth-context";
 import { useContext } from "react";
 
 async function formSubmit(formData: any, token: string) {
-  console.log(formData);
   let fromDate = new Date(formData.selectedDate);
   let time = formData.fromDate.split(":");
   let fromHrs = time[0];

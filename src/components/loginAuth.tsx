@@ -31,7 +31,6 @@ export function LogInAuth() {
   });
 
   async function formSubmit(formData: any) {
-    console.log(formData);
     fetch("http://localhost:8080/graphql", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -49,7 +48,11 @@ export function LogInAuth() {
     })
       .then((res) => {
         if (res.status !== 200) {
-          throw new Error("Log-in failed!");
+          notifications.show({
+            title: "Log-in failed.",
+            message: "Please check your credentials or try again.",
+            color: "red",
+          });
         }
         return res.json();
       })
@@ -62,6 +65,9 @@ export function LogInAuth() {
           auth.login(res.data.login.token, res.data.login.userId, 1);
           navigate("/app");
         }
+      })
+      .catch((err) => {
+        console.log(err);
       });
   }
 

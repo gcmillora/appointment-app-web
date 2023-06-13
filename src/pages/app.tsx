@@ -29,8 +29,7 @@ const PAGE_SIZE = 15;
 
 export default function AppPage() {
   const [page, setPage] = useState(1);
-  const [birthdaySearchRange, setBirthdaySearchRange] =
-    useState<DatesRangeValue>();
+  const [appRange, setAppRange] = useState<DatesRangeValue>();
   const auth = useContext(AuthContext);
 
   //redirect if not logged in
@@ -46,42 +45,37 @@ export default function AppPage() {
     const from = (page - 1) * PAGE_SIZE;
     const to = from + PAGE_SIZE;
     setRecords(appointments.slice(from, to));
-    setBirthdaySearchRange(undefined);
+    setAppRange(undefined);
   }, [page]);
 
   useEffect(() => {
     setRecords(
       appointments.filter((appointment) => {
-        console.log(birthdaySearchRange);
-
         if (
-          birthdaySearchRange &&
-          birthdaySearchRange[0] &&
-          birthdaySearchRange[1] &&
-          (dayjs(birthdaySearchRange[0]).isAfter(
+          appRange &&
+          appRange[0] &&
+          appRange[1] &&
+          (dayjs(appRange[0]).isAfter(
             new Date(parseInt(appointment.fromDate)),
             "day"
           ) ||
-            dayjs(birthdaySearchRange[1]).isBefore(
+            dayjs(appRange[1]).isBefore(
               new Date(parseInt(appointment.fromDate)),
               "day"
             ))
         ) {
-          console.log("not in range");
           return false;
         }
         return true;
       })
     );
-  }, [birthdaySearchRange]);
+  }, [appRange]);
 
   useLayoutEffect(() => {
     fetchAppointments();
   }, []);
 
   function fetchAppointments() {
-    console.log(auth.token);
-    console.log(auth.userId);
     fetch(" http://localhost:8080/graphql", {
       method: "POST",
       headers: {
@@ -145,7 +139,6 @@ export default function AppPage() {
   }
 
   function formSubmit(formData: any, token: string) {
-    console.log(formData);
     let fromDate = new Date(formData.selectedDate);
     let time = formData.fromDate.split(":");
     let fromHrs = time[0];
@@ -197,7 +190,7 @@ export default function AppPage() {
         })
         .then((res) => {
           const data = res.data;
-          console.log(res);
+
           const updatedAppointments: any[] = [...appointments];
           const obj = {
             _id: data.createAppointment._id,
@@ -234,7 +227,6 @@ export default function AppPage() {
           };
         })
         .catch((err) => {
-          console.log(err);
           notifications.show({
             title: "Appointment failed.",
             message: "Please try again.",
@@ -312,7 +304,6 @@ export default function AppPage() {
   });
 
   function editSubmit(formData: any, token: string, id: string) {
-    console.log(formData);
     let fromDate = new Date(formData.editselectedDate);
     let time = formData.editfromDate.split(":");
     let fromHrs = time[0];
@@ -363,7 +354,6 @@ export default function AppPage() {
           return res.json();
         })
         .then((res) => {
-          console.log(res);
           const data = res.data;
           const updatedAppointments: any[] = [...appointments];
           const obj = {
@@ -388,14 +378,31 @@ export default function AppPage() {
             })
           );
           setRecords(updatedAppointments);
+          notifications.show({
+            title: "Appointment updated.",
+            message: "You have successfully updated an appointment.",
+            color: "teal",
+          });
+
           return {
             appointments: updatedAppointments,
           };
         })
         .catch((err) => {
           console.log(err);
+          notifications.show({
+            title: "Appointment update failed.",
+            message: "Please try again.",
+            color: "red",
+          });
         });
-    } else console.log("Overlapping schedule");
+    } else {
+      notifications.show({
+        title: "Schedule conflict.",
+        message: "Overlapping schedule from other booked appointments.",
+        color: "red",
+      });
+    }
   }
 
   function editApp(appointment: any) {
@@ -415,7 +422,6 @@ export default function AppPage() {
   }
 
   function deleteApp(appointment: any) {
-    console.log(appointment);
     fetch("http://localhost:8080/graphql", {
       method: "POST",
       headers: {
@@ -440,7 +446,6 @@ export default function AppPage() {
       })
       .then((res) => {
         const data = res.data;
-        console.log(res);
         const updatedAppointments: any[] = [...appointments];
         //remove from array with id
         const index = updatedAppointments.findIndex(
@@ -485,16 +490,16 @@ export default function AppPage() {
           <div className="flex flex-row gap-2">
             <DatePickerInput
               type="range"
-              value={birthdaySearchRange}
-              onChange={setBirthdaySearchRange}
+              value={appRange}
+              onChange={setAppRange}
               placeholder="Filter date"
               maw={400}
             />
             <Button
-              disabled={!birthdaySearchRange}
+              disabled={!appRange}
               color="red"
               onClick={() => {
-                setBirthdaySearchRange(undefined);
+                setAppRange(undefined);
               }}
             >
               Reset
@@ -548,7 +553,7 @@ export default function AppPage() {
                     required
                     {...form.getInputProps("comments")}
                   />
-                  <Group align="end">
+                  <Group position="right" className="mt-2">
                     <Button type="submit">Submit </Button>
                   </Group>
                 </form>
@@ -677,7 +682,7 @@ export default function AppPage() {
                 required
                 {...editForm.getInputProps("editcomments")}
               />
-              <Group align="end">
+              <Group position="right" className="mt-2">
                 <Button type="submit">Submit </Button>
               </Group>
             </form>
