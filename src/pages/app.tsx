@@ -32,8 +32,15 @@ export default function AppPage() {
   const [birthdaySearchRange, setBirthdaySearchRange] =
     useState<DatesRangeValue>();
   const auth = useContext(AuthContext);
+
+  //redirect if not logged in
+  if (!auth.token) {
+    window.location.href = "/auth";
+  }
+
   const [appointments, setAppointments] = React.useState<any[]>([]);
   const [records, setRecords] = React.useState<any[]>([]);
+  const [selectedId, setSelectedId] = React.useState<string>("");
 
   useEffect(() => {
     const from = (page - 1) * PAGE_SIZE;
@@ -110,7 +117,22 @@ export default function AppPage() {
       });
   }
 
-  function isOverlapping(app: any) {
+  function isOverlapping(app: any, isEdit: boolean = false) {
+    if (isEdit) {
+      const updatedAppointments = appointments.filter(
+        (appointment) => appointment._id !== selectedId
+      );
+      for (const appointment of updatedAppointments) {
+        const fromDate = new Date(parseInt(appointment.fromDate));
+        const toDate = new Date(parseInt(appointment.toDate));
+
+        if (app.fromDate < toDate && app.toDate > fromDate) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     for (const appointment of appointments) {
       const fromDate = new Date(parseInt(appointment.fromDate));
       const toDate = new Date(parseInt(appointment.toDate));
@@ -154,6 +176,7 @@ export default function AppPage() {
         mutation{
           createAppointment(appointmentInput:{patient: "${formData.patient}",comments:"${formData.comments}",fromDate:"${fromDate}", toDate: "${toDate}" } ){
             _id  
+            patient
             comments
             fromDate
             toDate
@@ -174,12 +197,14 @@ export default function AppPage() {
         })
         .then((res) => {
           const data = res.data;
+          console.log(res);
           const updatedAppointments: any[] = [...appointments];
           const obj = {
             _id: data.createAppointment._id,
             comments: data.createAppointment.comments,
             fromDate: data.createAppointment.fromDate,
             toDate: data.createAppointment.toDate,
+            patient: data.createAppointment.patient,
           };
           updatedAppointments.push(obj);
           setAppointments(
@@ -196,6 +221,14 @@ export default function AppPage() {
             message: "You have successfully booked an appointment.",
             color: "teal",
           });
+          form.setValues({
+            patient: "",
+            selectedDate: new Date(),
+            fromDate: "",
+            toDate: "",
+            comments: "",
+          });
+
           return {
             appointments: updatedAppointments,
           };
@@ -217,7 +250,7 @@ export default function AppPage() {
     }
   }
 
-  const [opened, { open, close }] = useDisclosure(false);
+  const [opened, createHandlers] = useDisclosure(false);
   const [editOpened, editHandlers] = useDisclosure(false);
 
   const form = useForm({
@@ -232,11 +265,11 @@ export default function AppPage() {
     validate: {
       toDate: (value, values) => {
         //time should only be from 9AM TO 5PM
-        if (value < values.fromDate) return "Error too small";
+        if (value < values.fromDate) return "Time should be after from time";
         const time = value.split(":");
         const hrs = parseInt(time[0]);
         const mins = parseInt(time[1]);
-        if (hrs < 9 || hrs > 17) return "Error too small";
+        if (hrs < 9 || hrs > 17) return "Allowed time is from 9AM to 5PM";
         return null;
       },
       fromDate: (value, values) => {
@@ -244,7 +277,7 @@ export default function AppPage() {
         const time = value.split(":");
         const hrs = parseInt(time[0]);
         const mins = parseInt(time[1]);
-        if (hrs < 9 || hrs > 17) return "Error too small";
+        if (hrs < 9 || hrs > 17) return "Allowed time is from 9AM to 5PM";
         return null;
       },
     },
@@ -260,12 +293,25 @@ export default function AppPage() {
     },
     validate: {
       edittoDate: (value, values) => {
-        return value < values.editfromDate ? "Error too small" : null;
+        if (value < values.editfromDate)
+          return "Time should be after from time";
+        const time = value.split(":");
+        const hrs = parseInt(time[0]);
+        const mins = parseInt(time[1]);
+        if (hrs < 9 || hrs > 17) return "Allowed time is from 9AM to 5PM";
+        return null;
+      },
+      editfromDate: (value, values) => {
+        const time = value.split(":");
+        const hrs = parseInt(time[0]);
+        const mins = parseInt(time[1]);
+        if (hrs < 9 || hrs > 17) return "Allowed time is from 9AM to 5PM";
+        return null;
       },
     },
   });
 
-  function editSubmit(formData: any, token: string) {
+  function editSubmit(formData: any, token: string, id: string) {
     console.log(formData);
     let fromDate = new Date(formData.editselectedDate);
     let time = formData.editfromDate.split(":");
@@ -284,7 +330,7 @@ export default function AppPage() {
       toDate: toDate,
     };
 
-    if (!isOverlapping(dates)) {
+    if (!isOverlapping(dates, true)) {
       fetch("http://localhost:8080/graphql", {
         method: "POST",
         headers: {
@@ -295,13 +341,14 @@ export default function AppPage() {
         body: JSON.stringify({
           query: `
         mutation{
-          updateAppointment(appointmentInput:{patient: "${formData.editpatient}",comments:"${formData.editcomments}",fromDate:"${fromDate}", toDate: "${toDate}" } ){
+          updateAppointment(id: "${id}", updateAppointment:{patient:"${formData.editpatient}", comments:"${formData.editcomments}", fromDate:"${fromDate}", toDate: "${toDate}"} ){
             _id  
+            patient
             comments
             fromDate
             toDate
               createdBy{
-                  email
+                  _id
   
               }
           }
@@ -316,15 +363,23 @@ export default function AppPage() {
           return res.json();
         })
         .then((res) => {
+          console.log(res);
           const data = res.data;
           const updatedAppointments: any[] = [...appointments];
           const obj = {
+            patient: data.updateAppointment.patient,
             _id: data.updateAppointment._id,
             comments: data.updateAppointment.comments,
             fromDate: data.updateAppointment.fromDate,
             toDate: data.updateAppointment.toDate,
           };
-          updatedAppointments.push(obj);
+          const index = updatedAppointments.findIndex(
+            (curr_appointment) =>
+              curr_appointment._id === data.updateAppointment._id
+          );
+
+          updatedAppointments[index] = obj;
+
           setAppointments(
             updatedAppointments.sort((a, b) => {
               const dateA = new Date(parseInt(a.fromDate)).getTime();
@@ -341,6 +396,22 @@ export default function AppPage() {
           console.log(err);
         });
     } else console.log("Overlapping schedule");
+  }
+
+  function editApp(appointment: any) {
+    editForm.setValues({
+      editpatient: appointment.patient,
+      editselectedDate: new Date(parseInt(appointment.fromDate)),
+      editfromDate: moment(new Date(parseInt(appointment.fromDate))).format(
+        "HH:mm"
+      ),
+      edittoDate: moment(new Date(parseInt(appointment.toDate))).format(
+        "HH:mm"
+      ),
+      editcomments: appointment.comments,
+    });
+    setSelectedId(appointment._id);
+    editHandlers.open();
   }
 
   function deleteApp(appointment: any) {
@@ -424,7 +495,6 @@ export default function AppPage() {
               color="red"
               onClick={() => {
                 setBirthdaySearchRange(undefined);
-                close();
               }}
             >
               Reset
@@ -434,7 +504,7 @@ export default function AppPage() {
             <div>
               <Modal
                 opened={opened}
-                onClose={close}
+                onClose={createHandlers.close}
                 title="Create Appointment"
                 className="font-sans"
               >
@@ -483,7 +553,7 @@ export default function AppPage() {
                   </Group>
                 </form>
               </Modal>
-              <Button onClick={open} className="">
+              <Button onClick={createHandlers.open} className="">
                 Create
               </Button>
             </div>
@@ -502,6 +572,7 @@ export default function AppPage() {
             totalRecords={appointments.length}
             recordsPerPage={PAGE_SIZE}
             page={page}
+            minHeight={180}
             onPageChange={(p) => setPage(p)}
             columns={[
               {
@@ -543,9 +614,12 @@ export default function AppPage() {
                 render: (appointment) => {
                   return (
                     <Group spacing={4} position="center" noWrap>
-                      <Button color="blue" onClick={editHandlers.open}>
+                      <ActionIcon
+                        color="blue"
+                        onClick={() => editApp(appointment)}
+                      >
                         <IconEdit size={16} />
-                      </Button>
+                      </ActionIcon>
                       <ActionIcon
                         color="red"
                         onClick={() => deleteApp(appointment)}
@@ -565,7 +639,7 @@ export default function AppPage() {
           >
             <form
               onSubmit={editForm.onSubmit((values) =>
-                editSubmit(values, auth.token)
+                editSubmit(values, auth.token, selectedId)
               )}
             >
               <TextInput

@@ -1,6 +1,11 @@
-import { Anchor } from "@mantine/core";
-
+import { Anchor, Button } from "@mantine/core";
+import AuthContext from "../context/auth-context";
+import { useContext } from "react";
+import { useNavigate } from "react-router-dom";
 export default function NavBar() {
+  const auth = useContext(AuthContext);
+  const navigate = useNavigate();
+
   return (
     <nav className="bg-gray-800">
       <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
@@ -55,21 +60,24 @@ export default function NavBar() {
             </div>
             <div className="hidden sm:ml-6 sm:block">
               <div className="flex space-x-4">
-                <Anchor
-                  href="#"
+                <Button
                   className="bg-gray-900 text-white rounded-md text-sm font-medium"
                   aria-current="page"
                   color="white"
+                  disabled
                 >
                   App
-                </Anchor>
-                <Anchor
-                  href="#"
+                </Button>
+                <Button
+                  onClick={() => {
+                    auth.logout();
+                    navigate("/");
+                  }}
                   className="text-gray-300 hover:bg-gray-700 hover:text-white rounded-md px-3 py-2 text-sm font-medium"
-                  color="white"
+                  color="red"
                 >
                   Log-out
-                </Anchor>
+                </Button>
               </div>
             </div>
           </div>

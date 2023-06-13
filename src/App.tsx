@@ -32,6 +32,7 @@ function App() {
           {token && <NavBar />}
 
           <Routes>
+            <Route index path="*" element={<AuthPage />} />
             {!token && <Route path="/" element={<AuthPage />} />}
             {token && <Route path="/app" element={<AppPage />} />}
             {!token && <Route path="/auth" element={<AuthPage />} />}
