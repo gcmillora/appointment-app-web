@@ -5,6 +5,7 @@ import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { MantineProvider, createEmotionCache } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
+import { ModalsProvider } from "@mantine/modals";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -24,8 +25,10 @@ root.render(
         headings: { fontFamily: "Greycliff CF, sans-serif" },
       }}
     >
-      <Notifications />
-      <App />
+      <ModalsProvider>
+        <Notifications />
+        <App />
+      </ModalsProvider>
     </MantineProvider>
   </React.StrictMode>
 );
